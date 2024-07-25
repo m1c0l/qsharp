@@ -58,6 +58,8 @@ fn check_call_to_single_qubit_rotation_instrinsic_adds_callable_and_generates_in
     assert_block_instructions(&program, BlockId(0), expected_block);
 }
 
+
+
 fn check_call_to_two_qubits_rotation_instrinsic_adds_callable_and_generates_instruction(
     intrinsic_name: &str,
     expected_callable: &Expect,
@@ -1127,4 +1129,29 @@ fn call_to_operation_with_codegen_intrinsic_override_should_skip_impl() {
             Call id(3), args( Integer(0), Pointer, )
             Return"#]],
     );
+}
+
+#[test]
+fn call_to_measurement_simulatable_intrinsic_adds_callable_and_generates_instruction() {
+    let program = get_rir_program(
+        indoc!  {
+            r#"
+            namespace Test {
+                @SimulatableIntrinsic()
+                operation __quantum__qis__mz__body(q: Qubit) : Result {
+                    M(q)
+                }
+
+                @EntryPoint()
+                operation Main() : Result {
+                    use q = Qubit();
+                    __quantum__qis__mz__body(q)
+                }
+            }
+            "#
+        },
+    );
+    let op_callable_id = CallableId(1);
+    assert_callable(&program, op_callable_id, &expect![[r#""#]]);
+    assert_block_instructions(&program, BlockId(0), &expect![[r#""#]]);
 }

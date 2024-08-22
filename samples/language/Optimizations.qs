@@ -9,7 +9,7 @@ import Std.Convert.IntAsDouble;
 import Std.Math.ArcSin, Std.Math.ArcCos, Std.Math.PI, Std.Math.Sin;
 
 @EntryPoint()
-operation Main() : Unit {
+operation Main() : Result[] {
     use q = Qubit();
 
     // This gets optimized to a series of gates with constant argument.
@@ -32,4 +32,8 @@ operation Main() : Unit {
         Rxx(PI() + PI() + 2.0 * PI() * Sin(PI() / 2.0), targets[0], targets[1]);
     }
 
+    let qRes = MResetZ(q);
+    let controlsRes = MResetEachZ(controls);
+    let targetsRes = MResetEachZ(targets);
+    [qRes] + controlsRes + targetsRes
 }

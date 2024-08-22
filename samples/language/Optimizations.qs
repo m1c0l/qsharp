@@ -1,5 +1,3 @@
-open Microsoft.Quantum.Convert;
-open Microsoft.Quantum.Math;
 /// # Sample
 /// Adaptive profile optimizations
 ///
@@ -8,7 +6,7 @@ open Microsoft.Quantum.Math;
 /// generates QIR.
 
 import Std.Convert.IntAsDouble;
-import Std.Math.ArcSin;
+import Std.Math.ArcSin, Std.Math.ArcCos, Std.Math.PI, Std.Math.Sin;
 
 @EntryPoint()
 operation Main() : Unit {

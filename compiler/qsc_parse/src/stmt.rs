@@ -127,6 +127,7 @@ fn parse_qubit(s: &mut ParserContext) -> Result<Box<StmtKind>> {
 
 fn parse_qubit_init(s: &mut ParserContext) -> Result<Box<QubitInit>> {
     let lo = s.peek().span.lo;
+    s.push_prediction(vec![crate::Prediction::Qubit]);
     let kind = if let Ok(name) = ident(s) {
         if name.name.as_ref() != "Qubit" {
             return Err(Error::new(ErrorKind::Convert(

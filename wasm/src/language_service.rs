@@ -166,7 +166,11 @@ impl LanguageService {
                     })
                     .to_string(),
                     sortText: i.sort_text,
-                    detail: i.detail,
+                    detail: if let Some(detail) = i.detail {
+                        Some(format!("{} - {}", i.debug, detail))
+                    } else {
+                        Some(i.debug)
+                    },
                     additionalTextEdits: i.additional_text_edits.map(|edits| {
                         edits
                             .into_iter()

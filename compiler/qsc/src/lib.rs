@@ -36,7 +36,9 @@ pub mod project {
         PackageGraphSources,
     };
 }
-
+pub mod completion {
+    pub use qsc_frontend::Prediction;
+}
 pub use qsc_data_structures::{
     language_features::LanguageFeatures, namespaces::*, span::Span, target::TargetCapabilityFlags,
 };

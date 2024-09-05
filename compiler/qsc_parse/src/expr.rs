@@ -15,6 +15,7 @@ use crate::{
     },
     prim::{ident, opt, pat, path, recovering_token, seq, shorten, single_ident_path, token},
     scan::ParserContext,
+    scan::Prediction,
     stmt, Error, ErrorKind, Result,
 };
 use num_bigint::BigInt;
@@ -412,6 +413,19 @@ fn expr_interpolate(s: &mut ParserContext) -> Result<Vec<StringComponent>> {
 
 fn lit(s: &mut ParserContext) -> Result<Option<Lit>> {
     let lexeme = s.read();
+
+    // I'm sure this could be more efficient
+    s.push_prediction(vec![
+        Prediction::Keyword(Keyword::True.as_str()),
+        Prediction::Keyword(Keyword::Zero.as_str()),
+        Prediction::Keyword(Keyword::One.as_str()),
+        Prediction::Keyword(Keyword::PauliZ.as_str()),
+        Prediction::Keyword(Keyword::False.as_str()),
+        Prediction::Keyword(Keyword::PauliX.as_str()),
+        Prediction::Keyword(Keyword::PauliI.as_str()),
+        Prediction::Keyword(Keyword::PauliY.as_str()),
+    ]);
+
     let token = s.peek();
     match lit_token(lexeme, token) {
         Ok(Some(lit)) => {
@@ -686,6 +700,7 @@ fn lambda_op(s: &mut ParserContext, input: Expr, kind: CallableKind) -> Result<B
 }
 
 fn field_op(s: &mut ParserContext, lhs: Box<Expr>) -> Result<Box<ExprKind>> {
+    s.push_prediction(vec![Prediction::Field]);
     Ok(Box::new(ExprKind::Field(lhs, ident(s)?)))
 }
 

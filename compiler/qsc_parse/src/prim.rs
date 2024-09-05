@@ -5,6 +5,7 @@
 mod tests;
 
 use super::{keyword::Keyword, scan::ParserContext, ty::ty, Error, Parser, Result};
+use crate::Prediction;
 use crate::{
     item::throw_away_doc,
     lex::{Delim, TokenKind},
@@ -35,6 +36,10 @@ impl FinalSep {
 }
 
 pub(super) fn token(s: &mut ParserContext, t: TokenKind) -> Result<()> {
+    if let TokenKind::Keyword(k) = t {
+        return keyword(s, k);
+    }
+
     if s.peek().kind == t {
         s.advance();
         Ok(())
@@ -47,7 +52,22 @@ pub(super) fn token(s: &mut ParserContext, t: TokenKind) -> Result<()> {
     }
 }
 
+fn keyword(s: &mut ParserContext, k: Keyword) -> Result<()> {
+    s.push_prediction(vec![Prediction::Keyword(k.as_str())]);
+    if s.peek().kind == TokenKind::Keyword(k) {
+        s.advance();
+        Ok(())
+    } else {
+        Err(Error::new(ErrorKind::Token(
+            TokenKind::Keyword(k),
+            s.peek().kind,
+            s.peek().span,
+        )))
+    }
+}
+
 pub(super) fn apos_ident(s: &mut ParserContext) -> Result<Box<Ident>> {
+    s.push_prediction(vec![Prediction::TyParam]);
     let peek = s.peek();
     if peek.kind == TokenKind::AposIdent {
         let name = s.read().into();
@@ -86,6 +106,7 @@ pub(super) fn ident(s: &mut ParserContext) -> Result<Box<Ident>> {
 }
 
 pub fn single_ident_path(s: &mut ParserContext) -> Result<Box<Path>> {
+    s.push_prediction(vec![Prediction::Path]);
     let lo = s.peek().span.lo;
     let name = ident(s)?;
     Ok(Box::new(Path {

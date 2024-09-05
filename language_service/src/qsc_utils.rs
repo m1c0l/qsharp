@@ -4,6 +4,10 @@
 use crate::compilation::Compilation;
 use qsc::line_column::{Encoding, Range};
 use qsc::location::Location;
+use qsc::{
+    compile::{self},
+    completion::Prediction,
+};
 use qsc::{hir::PackageId, SourceMap, Span};
 
 pub(crate) fn into_range(encoding: Encoding, span: Span, source_map: &SourceMap) -> Range {
@@ -36,4 +40,8 @@ pub(crate) fn into_location(
         &compilation.package_store,
         position_encoding,
     )
+}
+
+pub(crate) fn whats_next(source: &str, cursor_offset: u32, notebook: bool) -> Vec<Prediction> {
+    compile::whats_next(source, cursor_offset, notebook)
 }

@@ -21,6 +21,7 @@ use crate::lex::ClosedBinOp;
 use crate::{
     lex::{Delim, TokenKind},
     prim::{barrier, path, recovering, recovering_token, shorten},
+    scan::Prediction,
     stmt::check_semis,
     ty::array_or_arrow,
     ErrorKind,
@@ -290,6 +291,7 @@ pub(crate) fn parse_doc(s: &mut ParserContext) -> Option<String> {
 fn parse_attr(s: &mut ParserContext) -> Result<Box<Attr>> {
     let lo = s.peek().span.lo;
     token(s, TokenKind::At)?;
+    s.push_prediction(vec![Prediction::Attr]);
     let name = ident(s)?;
     let arg = expr(s)?;
     Ok(Box::new(Attr {
@@ -306,6 +308,7 @@ fn parse_visibility(s: &mut ParserContext) -> Result<()> {
 }
 fn parse_open(s: &mut ParserContext) -> Result<Box<ItemKind>> {
     token(s, TokenKind::Keyword(Keyword::Open))?;
+    s.push_prediction(vec![Prediction::Namespace]);
     let mut name = vec![*(ident(s)?)];
     while let Ok(_dot) = token(s, TokenKind::Dot) {
         name.push(*(ident(s)?));

@@ -82,6 +82,7 @@ pub struct CompletionItem {
     pub sort_text: Option<String>,
     pub detail: Option<String>,
     pub additional_text_edits: Option<Vec<TextEdit>>,
+    pub debug: String,
 }
 
 impl CompletionItem {
@@ -93,6 +94,19 @@ impl CompletionItem {
             sort_text: None,
             detail: None,
             additional_text_edits: None,
+            debug: String::new(),
+        }
+    }
+
+    #[must_use]
+    pub fn with_debug(label: String, kind: CompletionItemKind, debug: String) -> Self {
+        CompletionItem {
+            label,
+            kind,
+            sort_text: None,
+            detail: None,
+            additional_text_edits: None,
+            debug,
         }
     }
 }

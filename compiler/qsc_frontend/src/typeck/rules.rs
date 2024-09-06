@@ -532,7 +532,7 @@ impl<'a> Context<'a> {
                 self.typed_holes.push((expr.id, expr.span));
                 converge(self.inferrer.fresh_ty(TySource::not_divergent(expr.span)))
             }
-            ExprKind::Err => converge(Ty::Err),
+            ExprKind::Err | ExprKind::ErrField(_) => converge(Ty::Err),
         };
 
         self.record(expr.id, ty.ty.clone());

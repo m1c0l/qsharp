@@ -280,6 +280,7 @@ pub fn walk_expr(vis: &mut impl MutVisitor, expr: &mut Expr) {
             vis.visit_block(within);
             vis.visit_block(apply);
         }
+        ExprKind::ErrField(lhs) => vis.visit_expr(lhs),
         ExprKind::Fail(msg) => vis.visit_expr(msg),
         ExprKind::Field(record, name) => {
             vis.visit_expr(record);

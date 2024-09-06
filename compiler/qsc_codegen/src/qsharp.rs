@@ -692,9 +692,7 @@ impl<W: Write> Visitor<'_> for QSharpGen<W> {
             ExprKind::Hole => {
                 self.write("_");
             }
-            ExprKind::Err => {
-                unreachable!();
-            }
+            ExprKind::Err | ExprKind::ErrField(_) => unreachable!(),
         }
     }
 

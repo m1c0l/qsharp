@@ -848,6 +848,8 @@ pub enum ExprKind {
     /// An expression with invalid syntax that can't be parsed.
     #[default]
     Err,
+    /// A field access expression that is missing the last field.
+    ErrField(Expr),
     /// A failure: `fail "message"`.
     Fail(Box<Expr>),
     /// A field accessor: `a::F` or `a.F`.
@@ -908,6 +910,7 @@ impl Display for ExprKind {
             ExprKind::Call(callable, arg) => display_call(indent, callable, arg)?,
             ExprKind::Conjugate(within, apply) => display_conjugate(indent, within, apply)?,
             ExprKind::Err => write!(indent, "Err")?,
+            ExprKind::ErrField(e) => write!(indent, "ErrField: {e}")?,
             ExprKind::Fail(e) => write!(indent, "Fail: {e}")?,
             ExprKind::Field(expr, id) => display_field(indent, expr, id)?,
             ExprKind::For(iter, iterable, body) => display_for(indent, iter, iterable, body)?,

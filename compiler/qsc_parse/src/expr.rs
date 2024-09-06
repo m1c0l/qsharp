@@ -20,8 +20,8 @@ use crate::{
 use num_bigint::BigInt;
 use num_traits::Num;
 use qsc_ast::ast::{
-    self, BinOp, CallableKind, Expr, ExprKind, FieldAssign, Functor, Lit, NodeId, Pat, PatKind,
-    Path, Pauli, StringComponent, TernOp, UnOp,
+    self, BinOp, CallableKind, Expr, ExprKind, FieldAssign, Functor, Ident, Lit, NodeId, Pat,
+    PatKind, Path, Pauli, StringComponent, TernOp, UnOp,
 };
 use qsc_data_structures::span::Span;
 use std::{result, str::FromStr};
@@ -686,7 +686,20 @@ fn lambda_op(s: &mut ParserContext, input: Expr, kind: CallableKind) -> Result<B
 }
 
 fn field_op(s: &mut ParserContext, lhs: Box<Expr>) -> Result<Box<ExprKind>> {
-    Ok(Box::new(ExprKind::Field(lhs, ident(s)?)))
+    Ok(Box::new(ExprKind::Field(
+        lhs,
+        match ident(s) {
+            Ok(ident) => ident,
+            Err(error) => {
+                s.push_error(error);
+                Box::new(Ident {
+                    id: NodeId::default(),
+                    span: s.span(s.peek().span.lo),
+                    name: "".into(),
+                })
+            }
+        },
+    )))
 }
 
 fn path_field_op(s: &mut ParserContext, lhs: Box<Expr>) -> Result<Box<ExprKind>> {
@@ -712,7 +725,20 @@ fn path_field_op(s: &mut ParserContext, lhs: Box<Expr>) -> Result<Box<ExprKind>>
         };
         Ok(Box::new(ExprKind::Path(Box::new(path))))
     } else {
-        Ok(Box::new(ExprKind::Field(lhs, ident(s)?)))
+        Ok(Box::new(ExprKind::Field(
+            lhs,
+            match ident(s) {
+                Ok(ident) => ident,
+                Err(error) => {
+                    s.push_error(error);
+                    Box::new(Ident {
+                        id: NodeId::default(),
+                        span: s.span(s.peek().span.lo),
+                        name: "".into(),
+                    })
+                }
+            },
+        )))
     }
 }
 

@@ -3,6 +3,7 @@
 
 use super::{ident, opt, pat, path, seq};
 use crate::{
+    expr::expr,
     keyword::Keyword,
     lex::{ClosedBinOp, TokenKind},
     scan::ParserContext,
@@ -117,17 +118,23 @@ fn path_trailing_dot() {
         path,
         "Foo.Bar.",
         &expect![[r#"
-            Error(
-                Rule(
-                    "identifier",
-                    Eof,
-                    Span {
-                        lo: 8,
-                        hi: 8,
-                    },
+            Path _id_ [0-8]:
+                Ident _id_ [0-3] "Foo"
+                Ident _id_ [4-7] "Bar"
+                Ident _id_ [8-8] ""
+
+            [
+                Error(
+                    Rule(
+                        "identifier",
+                        Eof,
+                        Span {
+                            lo: 8,
+                            hi: 8,
+                        },
+                    ),
                 ),
-            )
-        "#]],
+            ]"#]],
     );
 }
 
@@ -285,16 +292,9 @@ fn opt_fail_consume() {
         |s| opt(s, path),
         "Foo.#",
         &expect![[r#"
-            Error(
-                Rule(
-                    "identifier",
-                    Eof,
-                    Span {
-                        lo: 5,
-                        hi: 5,
-                    },
-                ),
-            )
+            Path _id_ [0-4]:
+                Ident _id_ [0-3] "Foo"
+                Ident _id_ [5-4] ""
 
             [
                 Error(
@@ -306,6 +306,16 @@ fn opt_fail_consume() {
                                 hi: 5,
                             },
                         ),
+                    ),
+                ),
+                Error(
+                    Rule(
+                        "identifier",
+                        Eof,
+                        Span {
+                            lo: 5,
+                            hi: 5,
+                        },
                     ),
                 ),
             ]"#]],
@@ -360,12 +370,14 @@ fn seq_fail_no_consume() {
 #[test]
 fn seq_fail_consume() {
     check_seq(
-        |s| seq(s, path),
-        "foo, bar.",
-        &expect![[r#"
+        |s| seq(s, expr),
+        "foo, bar(",
+        &expect![[r"
             Error(
-                Rule(
-                    "identifier",
+                Token(
+                    Close(
+                        Paren,
+                    ),
                     Eof,
                     Span {
                         lo: 9,
@@ -373,6 +385,6 @@ fn seq_fail_consume() {
                     },
                 ),
             )
-        "#]],
+        "]],
     );
 }

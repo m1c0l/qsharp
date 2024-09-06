@@ -103,7 +103,18 @@ pub(super) fn path(s: &mut ParserContext) -> Result<Box<Path>> {
     let lo = s.peek().span.lo;
     let mut parts = vec![ident(s)?];
     while token(s, TokenKind::Dot).is_ok() {
-        parts.push(ident(s)?);
+        match ident(s) {
+            Ok(ident) => parts.push(ident),
+            Err(error) => {
+                s.push_error(error);
+                parts.push(Box::new(Ident {
+                    id: NodeId::default(),
+                    span: s.span(s.peek().span.lo),
+                    name: "".into(),
+                }));
+                break;
+            }
+        }
     }
 
     let name = parts.pop().expect("path should have at least one part");

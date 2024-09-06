@@ -212,7 +212,8 @@ async fn completions_requested_after_document_load() {
 
     expect![[r#"
         343
-    "#]].assert_debug_eq(
+    "#]]
+    .assert_debug_eq(
         &ls.get_completions(
             "foo.qs",
             Position {

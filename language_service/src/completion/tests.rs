@@ -789,15 +789,15 @@ fn attributes() {
             @↘
         }
         "#},
-        &["EntryPoint"],
+        &["EntryPoint()"],
         &expect![[r#"
             [
                 Some(
                     CompletionItem {
-                        label: "EntryPoint",
+                        label: "EntryPoint()",
                         kind: Interface,
                         sort_text: Some(
-                            "0101EntryPoint",
+                            "0101EntryPoint()",
                         ),
                         detail: None,
                         additional_text_edits: None,
@@ -1735,3 +1735,16 @@ fn callable_from_same_file() {
         "#]],
     );
 }
+
+// TODO: why does this yield a bunch of statement keywords?
+
+// namespace Foo {
+//     operation Main() : Unit {
+//         repeat {
+//         } until x == Zero  // cursor
+//     }
+// }
+
+// TODO: implicit namespaces aren't working
+
+// TODO: UDTs

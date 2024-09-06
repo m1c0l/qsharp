@@ -143,93 +143,15 @@ pub(crate) fn get_completions(
 
     let mut builder = CompletionListBuilder::new();
 
-    let new = true;
-    if new {
-        do_the_building(
-            &mut builder,
-            compilation,
-            offset,
-            source_offset,
-            &context_finder,
-            insert_open_range,
-            &indent,
-        );
-
-        return CompletionList {
-            items: builder.into_items(),
-        };
-    }
-
-    match context_finder.context {
-        Context::Namespace => {
-            // Include "open", "operation", etc
-            builder.push_item_decl_keywords();
-            builder.push_attributes();
-
-            // Typing into a callable decl sometimes breaks the
-            // parser and the context appears to be a namespace block,
-            // so just include everything that may be relevant
-            builder.push_stmt_keywords();
-            builder.push_expr_keywords();
-            builder.push_types();
-            builder.push_globals(
-                compilation,
-                &context_finder.imports,
-                insert_open_range,
-                &context_finder.current_namespace_name,
-                &indent,
-            );
-        }
-
-        Context::CallableSignature => {
-            builder.push_types();
-            builder.push_locals(compilation, offset, false, true);
-        }
-        Context::Block => {
-            // Pretty much anything goes in a block
-            builder.push_locals(compilation, offset, true, true);
-            builder.push_stmt_keywords();
-            builder.push_expr_keywords();
-            builder.push_types();
-            builder.push_globals(
-                compilation,
-                &context_finder.imports,
-                insert_open_range,
-                &context_finder.current_namespace_name,
-                &indent,
-            );
-
-            // Item decl keywords last, unlike in a namespace
-            builder.push_item_decl_keywords();
-        }
-        Context::NoCompilation | Context::TopLevel => match compilation.kind {
-            CompilationKind::OpenProject { .. } => builder.push_namespace_keyword(),
-            CompilationKind::Notebook { .. } => {
-                // For notebooks, the top-level allows for
-                // more syntax.
-
-                builder.push_locals(compilation, offset, true, true);
-
-                // Item declarations
-                builder.push_item_decl_keywords();
-
-                // Things that go in a block
-                builder.push_stmt_keywords();
-                builder.push_expr_keywords();
-                builder.push_types();
-                builder.push_globals(
-                    compilation,
-                    &context_finder.imports,
-                    insert_open_range,
-                    &context_finder.current_namespace_name,
-                    &indent,
-                );
-
-                // Namespace declarations - least likely to be used, so last
-                builder.push_namespace_keyword();
-            }
-        },
-    };
+    do_the_building(
+        &mut builder,
+        compilation,
+        offset,
+        source_offset,
+        &context_finder,
+        insert_open_range,
+        &indent,
+    );
 
     CompletionList {
         items: builder.into_items(),
@@ -266,7 +188,7 @@ fn do_the_building(
         match completion_constraint {
             Prediction::Path => {
                 builder.push_locals(compilation, offset, true, false);
-                builder.push_globals_maybe_namespaces(
+                builder.push_globals(
                     compilation,
                     &context_finder.imports,
                     insert_open_range,
@@ -289,7 +211,7 @@ fn do_the_building(
                 // );
             }
             Prediction::Namespace => {
-                builder.push_globals_maybe_namespaces(
+                builder.push_globals(
                     compilation,
                     &context_finder.imports,
                     insert_open_range,
@@ -313,7 +235,7 @@ fn do_the_building(
             Prediction::Attr => {
                 // Only known attribute is EntryPoint
                 builder.push_completions_with_kind(
-                    [("EntryPoint", "attr".into())].into_iter(),
+                    [("EntryPoint()", "attr".into()), ("Config()", "attr".into())].into_iter(),
                     CompletionItemKind::Interface,
                 );
             }
@@ -395,82 +317,6 @@ impl CompletionListBuilder {
         self.items.into_iter().collect()
     }
 
-    fn push_item_decl_keywords(&mut self) {
-        static ITEM_KEYWORDS: [&str; 5] = ["operation", "open", "internal", "function", "newtype"];
-
-        self.push_completions(
-            ITEM_KEYWORDS
-                .map(|key| CompletionItem::new(key.to_string(), CompletionItemKind::Keyword))
-                .into_iter(),
-        );
-    }
-
-    fn push_attributes(&mut self) {
-        static ATTRIBUTES: [&str; 2] = ["@EntryPoint()", "@Config()"];
-
-        self.push_completions(
-            ATTRIBUTES
-                .map(|key| CompletionItem::new(key.to_string(), CompletionItemKind::Property))
-                .into_iter(),
-        );
-    }
-
-    fn push_namespace_keyword(&mut self) {
-        self.push_completions(
-            [CompletionItem::new(
-                "namespace".to_string(),
-                CompletionItemKind::Keyword,
-            )]
-            .into_iter(),
-        );
-    }
-
-    fn push_types(&mut self) {
-        static PRIMITIVE_TYPES: [&str; 10] = [
-            "Qubit", "Int", "Unit", "Result", "Bool", "BigInt", "Double", "Pauli", "Range",
-            "String",
-        ];
-        static FUNCTOR_KEYWORDS: [&str; 3] = ["Adj", "Ctl", "is"];
-
-        self.push_completions(
-            PRIMITIVE_TYPES
-                .map(|key| CompletionItem::new(key.to_string(), CompletionItemKind::Interface))
-                .into_iter(),
-        );
-
-        self.push_completions(
-            FUNCTOR_KEYWORDS
-                .map(|key| CompletionItem::new(key.to_string(), CompletionItemKind::Keyword))
-                .into_iter(),
-        );
-    }
-
-    /// Populates self's completion list with globals
-    fn push_globals(
-        &mut self,
-        compilation: &Compilation,
-        imports: &[ImportItem],
-        insert_open_range: Option<Range>,
-        current_namespace_name: &Option<Vec<Rc<str>>>,
-        indent: &String,
-    ) {
-        for (package_id, _) in compilation.package_store.iter().rev() {
-            self.push_sorted_completions(Self::get_callables(
-                compilation,
-                package_id,
-                imports,
-                insert_open_range,
-                current_namespace_name.as_deref(),
-                indent,
-            ));
-        }
-
-        for (id, unit) in compilation.package_store.iter().rev() {
-            let alias = compilation.dependencies.get(&id).cloned().flatten();
-            self.push_completions(Self::get_namespaces(&unit.package, alias));
-        }
-    }
-
     fn push_locals(
         &mut self,
         compilation: &Compilation,
@@ -489,29 +335,6 @@ impl CompletionListBuilder {
                     local_completion(candidate, compilation, include_terms, include_tys)
                 })
                 .map(|item| (item, 0)),
-        );
-    }
-
-    fn push_stmt_keywords(&mut self) {
-        static STMT_KEYWORDS: [&str; 5] = ["let", "return", "use", "mutable", "borrow"];
-
-        self.push_completions(
-            STMT_KEYWORDS
-                .map(|key| CompletionItem::new(key.to_string(), CompletionItemKind::Keyword))
-                .into_iter(),
-        );
-    }
-
-    fn push_expr_keywords(&mut self) {
-        static EXPR_KEYWORDS: [&str; 11] = [
-            "if", "for", "in", "within", "apply", "repeat", "until", "fixup", "set", "while",
-            "fail",
-        ];
-
-        self.push_completions(
-            EXPR_KEYWORDS
-                .map(|key| CompletionItem::new(key.to_string(), CompletionItemKind::Keyword))
-                .into_iter(),
         );
     }
 
@@ -627,7 +450,7 @@ impl CompletionListBuilder {
         })
     }
 
-    fn push_globals_maybe_namespaces(
+    fn push_globals(
         &mut self,
         compilation: &Compilation,
         imports: &[ImportItem],

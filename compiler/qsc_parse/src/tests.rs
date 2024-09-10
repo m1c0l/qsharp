@@ -3,7 +3,7 @@
 
 use super::{scan::ParserContext, Parser};
 use crate::prim::FinalSep;
-use expect_test::Expect;
+use expect_test::{expect, Expect};
 use qsc_data_structures::language_features::LanguageFeatures;
 use std::fmt::Display;
 
@@ -223,4 +223,20 @@ fn test_completion_empty_source() {
 
     // a namespace follows the open keyword
     assert_eq!(format!("{v:?}"), "[Keyword(\"namespace\")]");
+}
+
+#[test]
+fn test_completion_path_part() {
+    let input = "namespace Foo { operation Main() : Unit { Foo. } }".to_string();
+    let cursor = 46_u32;
+    let mut scanner = ParserContext::predict_mode(&input, cursor);
+    let _ = crate::item::parse_namespaces(&mut scanner);
+    let v = scanner.into_predictions();
+
+    expect![[r"
+        [
+            PathPart,
+        ]
+    "]]
+    .assert_debug_eq(&v);
 }

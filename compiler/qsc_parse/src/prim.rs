@@ -118,6 +118,7 @@ pub(super) fn path(s: &mut ParserContext) -> Result<Box<Path>> {
             Ok(ident) => parts.push(ident),
             Err(error) => {
                 s.push_error(error);
+                s.reset_prediction();
                 let mut span = s.span(s.peek().span.lo);
                 // i dunno somehow the lo and hi are flipped
                 std::mem::swap(&mut span.lo, &mut span.hi);

@@ -40,6 +40,10 @@ impl ParserContext<'_> {
         self.scanner.push_prediction(expectations);
     }
 
+    pub fn reset_prediction(&mut self) {
+        self.scanner.reset_prediction();
+    }
+
     pub fn into_predictions(self) -> Vec<Prediction> {
         self.scanner.into_predictions()
     }
@@ -209,9 +213,7 @@ impl<'a> Scanner<'a> {
                 self.advance();
                 break;
             } else if peek == TokenKind::Eof || self.barriers.iter().any(|&b| contains(peek, b)) {
-                if let ScannerKind::Predict(lexer, _) = &mut self.kind {
-                    lexer.at_cursor = false;
-                }
+                self.reset_prediction();
                 break;
             }
             if peek == TokenKind::Eof || self.barriers.iter().any(|&b| contains(peek, b)) {
@@ -241,6 +243,12 @@ impl<'a> Scanner<'a> {
             if lexer.at_cursor {
                 predictions.extend(expectations);
             }
+        }
+    }
+
+    pub(super) fn reset_prediction(&mut self) {
+        if let ScannerKind::Predict(lexer, _) = &mut self.kind {
+            lexer.at_cursor = false;
         }
     }
 

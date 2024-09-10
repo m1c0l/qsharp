@@ -280,8 +280,6 @@ fn do_the_building(
         matches!(compilation.kind, CompilationKind::Notebook { .. }),
     );
 
-    println!("predictions: {predictions:?}");
-
     for completion_constraint in predictions {
         match completion_constraint {
             Prediction::Path => {
@@ -1271,14 +1269,8 @@ fn callable_decl_in_namespace_to_completion_item(
             let mut path = path.clone();
             path.append(&mut Into::<Vec<_>>::into(provided_namespace_name));
             let full_provided_ns = &path[..];
-            println!(
-                "comparing: {:?} to candidate_ns: {:?} item name: {:?}",
-                full_provided_ns, candidate_ns, candidate_name
-            );
             *full_provided_ns == candidate_ns[..]
         });
-
-    println!("   match: {}", preexisting_exact_import);
 
     if !preexisting_exact_import {
         return None;

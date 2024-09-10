@@ -42,6 +42,23 @@ pub fn prepare_package_store(
     capabilities: TargetCapabilityFlags,
     package_graph_sources: PackageGraphSources,
 ) -> BuildableProgram {
+    prepare_package_store_internal(capabilities, package_graph_sources, true)
+}
+
+#[must_use]
+pub fn prepare_package_store_no_stdlib(
+    capabilities: TargetCapabilityFlags,
+    package_graph_sources: PackageGraphSources,
+) -> BuildableProgram {
+    prepare_package_store_internal(capabilities, package_graph_sources, false)
+}
+
+#[must_use]
+fn prepare_package_store_internal(
+    capabilities: TargetCapabilityFlags,
+    package_graph_sources: PackageGraphSources,
+    stdlib: bool,
+) -> BuildableProgram {
     let (std_id, mut package_store) = crate::compile::package_store_with_stdlib(capabilities);
 
     let mut canonical_package_identifier_to_package_id_mapping = FxHashMap::default();
@@ -97,17 +114,20 @@ pub fn prepare_package_store(
         canonical_package_identifier_to_package_id_mapping.insert(package_name, package_id);
     }
 
-    let user_code_dependencies = user_code
-        .dependencies
-        .iter()
-        .filter_map(|(alias, key)| {
-            canonical_package_identifier_to_package_id_mapping
-                .get(key)
-                .copied()
-                .map(|pkg| (pkg, Some(alias.clone())))
-        })
-        .chain(std::iter::once((std_id, None)))
-        .collect::<Vec<_>>();
+    let user_code_dependencies = user_code.dependencies.iter().filter_map(|(alias, key)| {
+        canonical_package_identifier_to_package_id_mapping
+            .get(key)
+            .copied()
+            .map(|pkg| (pkg, Some(alias.clone())))
+    });
+
+    let user_code_dependencies = if stdlib {
+        user_code_dependencies
+            .chain(std::iter::once((std_id, None)))
+            .collect::<Vec<_>>()
+    } else {
+        user_code_dependencies.collect::<Vec<_>>()
+    };
 
     BuildableProgram {
         store: package_store,

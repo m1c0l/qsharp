@@ -9,7 +9,7 @@ use qsc::{
     hir::{self, PackageId},
     incremental::Compiler,
     line_column::{Encoding, Position, Range},
-    packages::{prepare_package_store, BuildableProgram},
+    packages::{prepare_package_store, prepare_package_store_no_stdlib, BuildableProgram},
     project, resolve,
     target::Profile,
     CompileUnit, LanguageFeatures, PackageStore, PackageType, PassContext, SourceMap, Span,
@@ -63,18 +63,25 @@ impl Compilation {
         package_graph_sources: PackageGraphSources,
         project_errors: Vec<project::Error>,
     ) -> Self {
-        let mut buildable_program =
-            prepare_package_store(target_profile.into(), package_graph_sources.clone());
+        let user_code = SourceMap::new(package_graph_sources.root.sources.clone(), None);
+
+        let user_code_is_std = user_code.common_prefix().is_some_and(|p| {
+            p.ends_with("qsharp/library/std/src") || p.ends_with("qsharp\\library\\std\\src")
+        });
+
+        let mut buildable_program = if user_code_is_std {
+            prepare_package_store_no_stdlib(target_profile.into(), package_graph_sources.clone())
+        } else {
+            prepare_package_store(target_profile.into(), package_graph_sources.clone())
+        };
 
         let mut compile_errors = take(&mut buildable_program.dependency_errors);
 
         let BuildableProgram {
             store: mut package_store,
-            user_code,
             user_code_dependencies,
             ..
         } = buildable_program;
-        let user_code = SourceMap::new(user_code.sources, None);
 
         let (unit, mut this_errors) = compile::compile(
             &package_store,

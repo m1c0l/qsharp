@@ -152,6 +152,11 @@ impl SourceMap {
         self.sources.iter()
     }
 
+    #[must_use]
+    pub fn common_prefix(&self) -> Option<&str> {
+        self.common_prefix.as_deref()
+    }
+
     /// Returns the sources as an iter, but with the project root directory subtracted
     /// from the individual source names.
     pub(crate) fn relative_sources(&self) -> impl Iterator<Item = Source> + '_ {

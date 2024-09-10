@@ -13,7 +13,7 @@ use crate::{
         ClosedBinOp, Delim, InterpolatedEnding, InterpolatedStart, Radix, StringToken, Token,
         TokenKind,
     },
-    prim::{ident, opt, pat, path, recovering_token, seq, shorten, single_ident_path, token},
+    prim::{ident, opt, pat, path, recovering_token, seq, shorten, token},
     scan::ParserContext,
     stmt, Error, ErrorKind, Result,
 };
@@ -21,7 +21,7 @@ use num_bigint::BigInt;
 use num_traits::Num;
 use qsc_ast::ast::{
     self, BinOp, CallableKind, Expr, ExprKind, FieldAssign, Functor, Ident, Lit, NodeId, Pat,
-    PatKind, Path, Pauli, StringComponent, TernOp, UnOp,
+    PatKind, Pauli, StringComponent, TernOp, UnOp,
 };
 use qsc_data_structures::span::Span;
 use std::{result, str::FromStr};
@@ -221,7 +221,7 @@ fn expr_base(s: &mut ParserContext) -> Result<Box<Expr>> {
         Ok(Box::new(ExprKind::Block(b)))
     } else if let Some(l) = lit(s)? {
         Ok(Box::new(ExprKind::Lit(Box::new(l))))
-    } else if let Some(p) = opt(s, single_ident_path)? {
+    } else if let Some(p) = opt(s, path)? {
         Ok(Box::new(ExprKind::Path(p)))
     } else {
         Err(Error::new(ErrorKind::Rule(
@@ -645,12 +645,8 @@ fn mixfix_op(name: OpName) -> Option<MixfixOp> {
             kind: OpKind::Postfix(UnOp::Unwrap),
             precedence: 15,
         }),
-        OpName::Token(TokenKind::ColonColon) => Some(MixfixOp {
+        OpName::Token(TokenKind::ColonColon | TokenKind::Dot) => Some(MixfixOp {
             kind: OpKind::Rich(field_op),
-            precedence: 15,
-        }),
-        OpName::Token(TokenKind::Dot) => Some(MixfixOp {
-            kind: OpKind::Rich(path_field_op),
             precedence: 15,
         }),
         OpName::Token(TokenKind::Open(Delim::Bracket)) => Some(MixfixOp {
@@ -685,6 +681,7 @@ fn lambda_op(s: &mut ParserContext, input: Expr, kind: CallableKind) -> Result<B
     Ok(Box::new(ExprKind::Lambda(kind, input, output)))
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn field_op(s: &mut ParserContext, lhs: Box<Expr>) -> Result<Box<ExprKind>> {
     Ok(Box::new(ExprKind::Field(
         lhs,
@@ -692,54 +689,18 @@ fn field_op(s: &mut ParserContext, lhs: Box<Expr>) -> Result<Box<ExprKind>> {
             Ok(ident) => ident,
             Err(error) => {
                 s.push_error(error);
+                let mut span = s.span(s.peek().span.lo);
+                // i dunno somehow the lo and hi are flipped
+                std::mem::swap(&mut span.lo, &mut span.hi);
+
                 Box::new(Ident {
                     id: NodeId::default(),
-                    span: s.span(s.peek().span.lo),
+                    span,
                     name: "".into(),
                 })
             }
         },
     )))
-}
-
-fn path_field_op(s: &mut ParserContext, lhs: Box<Expr>) -> Result<Box<ExprKind>> {
-    if let ExprKind::Path(leading_path) = *lhs.kind {
-        let rest = path(s)?;
-        let name = rest.name;
-        let span = Span {
-            lo: lhs.span.lo,
-            hi: rest.span.hi,
-        };
-        let parts = {
-            let mut v = vec![*leading_path.name];
-            if let Some(parts) = rest.segments {
-                v.append(&mut parts.into());
-            }
-            v.into()
-        };
-        let path = Path {
-            id: NodeId::default(),
-            span,
-            segments: Some(parts),
-            name,
-        };
-        Ok(Box::new(ExprKind::Path(Box::new(path))))
-    } else {
-        Ok(Box::new(ExprKind::Field(
-            lhs,
-            match ident(s) {
-                Ok(ident) => ident,
-                Err(error) => {
-                    s.push_error(error);
-                    Box::new(Ident {
-                        id: NodeId::default(),
-                        span: s.span(s.peek().span.lo),
-                        name: "".into(),
-                    })
-                }
-            },
-        )))
-    }
 }
 
 fn index_op(s: &mut ParserContext, lhs: Box<Expr>) -> Result<Box<ExprKind>> {

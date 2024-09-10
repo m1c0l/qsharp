@@ -1667,3 +1667,186 @@ fn callable_from_same_file() {
         "#]],
     );
 }
+
+#[test]
+fn member_completion() {
+    check(
+        r#"
+        namespace Test {
+            function MyCallable() : Unit {}
+        }
+
+        namespace Main {
+            operation Main() : Unit {
+               Test.↘
+            }
+        }
+        
+        "#,
+        &["MyCallable"],
+        &expect![[r#"
+            [
+                Some(
+                    CompletionItem {
+                        label: "MyCallable",
+                        kind: Function,
+                        sort_text: Some(
+                            "0100MyCallable",
+                        ),
+                        detail: Some(
+                            "function MyCallable() : Unit",
+                        ),
+                        additional_text_edits: None,
+                    },
+                ),
+            ]
+        "#]],
+    );
+}
+
+#[test]
+fn member_completion_in_imported_namespace() {
+    check(
+        r#"
+        namespace Test.Foo {
+            function MyCallable() : Unit {}
+        }
+
+        namespace Main {
+            open Test;
+            operation Main() : Unit {
+               Foo.↘
+            }
+        }
+        
+        "#,
+        &["MyCallable"],
+        &expect![[r#"
+            [
+                Some(
+                    CompletionItem {
+                        label: "MyCallable",
+                        kind: Function,
+                        sort_text: Some(
+                            "0100MyCallable",
+                        ),
+                        detail: Some(
+                            "function MyCallable() : Unit",
+                        ),
+                        additional_text_edits: None,
+                    },
+                ),
+            ]
+        "#]],
+    );
+}
+
+#[test]
+fn namespace_completion() {
+    check(
+        r#"
+        namespace Test.Foo {
+            function MyCallable() : Unit {}
+        }
+
+        namespace Main {
+            operation Main() : Unit {
+               Test.↘
+            }
+        }
+        
+        "#,
+        &["Foo"],
+        &expect![[r#"
+            [
+                Some(
+                    CompletionItem {
+                        label: "Foo",
+                        kind: Module,
+                        sort_text: Some(
+                            "0401Foo",
+                        ),
+                        detail: None,
+                        additional_text_edits: None,
+                    },
+                ),
+            ]
+        "#]],
+    );
+}
+
+#[test]
+fn nested_namespace() {
+    check(
+        r#"       
+        namespace Test.Foo {
+            function MyCallable() : Unit {}
+        }
+
+        namespace Test {
+            function MyCallable2() : Unit {
+                Foo.↘
+            }
+        }"#,
+        &["MyCallable", "MyCallable2"],
+        &expect![[r#"
+            [
+                Some(
+                    CompletionItem {
+                        label: "MyCallable",
+                        kind: Function,
+                        sort_text: Some(
+                            "0100MyCallable",
+                        ),
+                        detail: Some(
+                            "function MyCallable() : Unit",
+                        ),
+                        additional_text_edits: None,
+                    },
+                ),
+                None,
+            ]
+        "#]],
+    );
+}
+
+#[test]
+fn std_member() {
+    check(
+        r#"  
+        namespace Test {
+            function MyCallable2() : Unit {
+                FakeStdLib.↘
+            }
+        }"#,
+        &["Fake", "Foo"],
+        &expect![[r#"
+            [
+                Some(
+                    CompletionItem {
+                        label: "Fake",
+                        kind: Function,
+                        sort_text: Some(
+                            "0200Fake",
+                        ),
+                        detail: Some(
+                            "operation Fake() : Unit",
+                        ),
+                        additional_text_edits: None,
+                    },
+                ),
+                Some(
+                    CompletionItem {
+                        label: "Foo",
+                        kind: Module,
+                        sort_text: Some(
+                            "0501Foo",
+                        ),
+                        detail: None,
+                        additional_text_edits: None,
+                    },
+                ),
+            ]
+        "#]],
+    );
+}

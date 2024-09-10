@@ -310,7 +310,7 @@ function registerMonacoLanguageServiceProviders(
         }),
       };
     },
-    triggerCharacters: ["@"], // for attribute completions
+    triggerCharacters: ["@", "."], // for attribute completions
   });
 
   monaco.languages.registerHoverProvider("qsharp", {

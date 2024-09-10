@@ -85,16 +85,16 @@ pub(super) fn ident(s: &mut ParserContext) -> Result<Box<Ident>> {
     }
 }
 
-pub fn single_ident_path(s: &mut ParserContext) -> Result<Box<Path>> {
-    let lo = s.peek().span.lo;
-    let name = ident(s)?;
-    Ok(Box::new(Path {
-        id: NodeId::default(),
-        span: s.span(lo),
-        segments: None,
-        name,
-    }))
-}
+// pub fn single_ident_path(s: &mut ParserContext) -> Result<Box<Path>> {
+//     let lo = s.peek().span.lo;
+//     let name = ident(s)?;
+//     Ok(Box::new(Path {
+//         id: NodeId::default(),
+//         span: s.span(lo),
+//         segments: None,
+//         name,
+//     }))
+// }
 
 /// A `path` is a dot-separated list of idents like "Foo.Bar.Baz"
 /// this can be either a namespace name (in an open statement or namespace declaration) or
@@ -107,9 +107,13 @@ pub(super) fn path(s: &mut ParserContext) -> Result<Box<Path>> {
             Ok(ident) => parts.push(ident),
             Err(error) => {
                 s.push_error(error);
+                let mut span = s.span(s.peek().span.lo);
+                // i dunno somehow the lo and hi are flipped
+                std::mem::swap(&mut span.lo, &mut span.hi);
+
                 parts.push(Box::new(Ident {
                     id: NodeId::default(),
-                    span: s.span(s.peek().span.lo),
+                    span,
                     name: "".into(),
                 }));
                 break;

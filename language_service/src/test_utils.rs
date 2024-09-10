@@ -16,6 +16,41 @@ use qsc::{
 use qsc_project::{PackageGraphSources, PackageInfo};
 use rustc_hash::FxHashMap;
 
+const FAKE_STDLIB_CONTENTS: &str = r#"
+    namespace FakeStdLib {
+        operation Fake() : Unit {}
+        operation FakeWithParam(x : Int) : Unit {}
+        operation FakeCtlAdj() : Unit is Ctl + Adj {}
+        newtype Udt = (x : Int, y : Int);
+        newtype UdtWrapper = (inner : Udt);
+        newtype UdtFn = (Int -> Int);
+        newtype UdtFnWithUdtParams = (Udt -> Udt);
+        function TakesUdt(input : Udt) : Udt {
+            fail "not implemented"
+        }
+        operation RefFake() : Unit {
+            Fake();
+        }
+        operation FakeWithTypeParam<'A>(a : 'A) : 'A { a }
+        internal operation Hidden() : Unit {}
+        struct FakeStruct { x : Int, y : Int }
+        struct StructWrapper { inner : FakeStruct }
+        struct StructFn { inner : Int -> Int }
+        struct StructFnWithStructParams { inner : FakeStruct -> FakeStruct }
+        function TakesStruct(input : FakeStruct) : FakeStruct {
+            fail "not implemented"
+        }
+        export Fake, FakeWithParam, FakeCtlAdj, Udt, UdtWrapper, UdtFn, UdtFnWithUdtParams, TakesUdt, RefFake, FakeWithTypeParam;
+        export FakeStruct, StructWrapper, StructFn, StructFnWithStructParams, TakesStruct;
+    }
+    
+    namespace FakeStdLib.Foo {
+        operation Foo() : Unit {}
+    }
+    "#;
+
+const FAKE_STDLIB_NAME: &str = "qsharp-library-source:<std>";
+
 pub(crate) fn compile_with_markers(
     source_with_markers: &str,
     use_fake_stdlib: bool,
@@ -131,18 +166,7 @@ where
     I: Iterator<Item = (&'a str, &'a str)>,
 {
     let std_source_map = SourceMap::new(
-        [(
-            "qsharp-library-source:<std>".into(),
-            "namespace FakeStdLib {
-                operation Fake() : Unit {}
-                operation FakeWithParam(x: Int) : Unit {}
-                operation FakeCtlAdj() : Unit is Ctl + Adj {}
-                newtype Complex = (Real: Double, Imag: Double);
-                function TakesComplex(input : Complex) : Unit {}
-                export Fake, FakeWithParam, FakeCtlAdj, Complex, TakesComplex;
-            }"
-            .into(),
-        )],
+        [(FAKE_STDLIB_NAME.into(), FAKE_STDLIB_CONTENTS.into())],
         None,
     );
 
@@ -183,37 +207,9 @@ where
 
 fn compile_fake_stdlib() -> (PackageId, PackageStore) {
     let mut package_store = PackageStore::new(compile::core());
+
     let std_source_map = SourceMap::new(
-        [(
-            "qsharp-library-source:<std>".into(),
-            r#"namespace FakeStdLib {
-                operation Fake() : Unit {}
-                operation FakeWithParam(x : Int) : Unit {}
-                operation FakeCtlAdj() : Unit is Ctl + Adj {}
-                newtype Udt = (x : Int, y : Int);
-                newtype UdtWrapper = (inner : Udt);
-                newtype UdtFn = (Int -> Int);
-                newtype UdtFnWithUdtParams = (Udt -> Udt);
-                function TakesUdt(input : Udt) : Udt {
-                    fail "not implemented"
-                }
-                operation RefFake() : Unit {
-                    Fake();
-                }
-                operation FakeWithTypeParam<'A>(a : 'A) : 'A { a }
-                internal operation Hidden() : Unit {}
-                struct FakeStruct { x : Int, y : Int }
-                struct StructWrapper { inner : FakeStruct }
-                struct StructFn { inner : Int -> Int }
-                struct StructFnWithStructParams { inner : FakeStruct -> FakeStruct }
-                function TakesStruct(input : FakeStruct) : FakeStruct {
-                    fail "not implemented"
-                }
-                export Fake, FakeWithParam, FakeCtlAdj, Udt, UdtWrapper, UdtFn, UdtFnWithUdtParams, TakesUdt, RefFake, FakeWithTypeParam;
-                export FakeStruct, StructWrapper, StructFn, StructFnWithStructParams, TakesStruct;
-            }"#
-            .into(),
-        )],
+        [(FAKE_STDLIB_NAME.into(), FAKE_STDLIB_CONTENTS.into())],
         None,
     );
     let (std_compile_unit, std_errors) = compile::compile(

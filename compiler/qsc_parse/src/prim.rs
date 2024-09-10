@@ -5,6 +5,7 @@
 mod tests;
 
 use super::{keyword::Keyword, scan::ParserContext, ty::ty, Error, Parser, Result};
+use crate::Prediction;
 use crate::{
     item::throw_away_doc,
     lex::{Delim, TokenKind},
@@ -35,6 +36,10 @@ impl FinalSep {
 }
 
 pub(super) fn token(s: &mut ParserContext, t: TokenKind) -> Result<()> {
+    if let TokenKind::Keyword(k) = t {
+        return keyword(s, k);
+    }
+
     if s.peek().kind == t {
         s.advance();
         Ok(())
@@ -47,7 +52,22 @@ pub(super) fn token(s: &mut ParserContext, t: TokenKind) -> Result<()> {
     }
 }
 
+fn keyword(s: &mut ParserContext, k: Keyword) -> Result<()> {
+    s.push_prediction(vec![Prediction::Keyword(k.as_str())]);
+    if s.peek().kind == TokenKind::Keyword(k) {
+        s.advance();
+        Ok(())
+    } else {
+        Err(Error::new(ErrorKind::Token(
+            TokenKind::Keyword(k),
+            s.peek().kind,
+            s.peek().span,
+        )))
+    }
+}
+
 pub(super) fn apos_ident(s: &mut ParserContext) -> Result<Box<Ident>> {
+    s.push_prediction(vec![Prediction::TyParam]);
     let peek = s.peek();
     if peek.kind == TokenKind::AposIdent {
         let name = s.read().into();
@@ -89,9 +109,11 @@ pub(super) fn ident(s: &mut ParserContext) -> Result<Box<Ident>> {
 /// this can be either a namespace name (in an open statement or namespace declaration) or
 /// it can be a direct reference to something in a namespace, like `Microsoft.Quantum.Diagnostics.DumpMachine()`
 pub(super) fn path(s: &mut ParserContext) -> Result<Box<Path>> {
+    s.push_prediction(vec![Prediction::Path]);
     let lo = s.peek().span.lo;
     let mut parts = vec![ident(s)?];
     while token(s, TokenKind::Dot).is_ok() {
+        s.push_prediction(vec![Prediction::PathPart]);
         match ident(s) {
             Ok(ident) => parts.push(ident),
             Err(error) => {

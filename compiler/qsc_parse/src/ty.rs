@@ -10,6 +10,7 @@ use super::{
     scan::ParserContext,
     Error, Parser, Result,
 };
+use crate::Prediction;
 use crate::{
     item::throw_away_doc,
     lex::{ClosedBinOp, Delim, TokenKind},
@@ -89,7 +90,10 @@ fn base(s: &mut ParserContext) -> Result<Ty> {
         Ok(TyKind::Hole)
     } else if let Some(name) = opt(s, param)? {
         Ok(TyKind::Param(name))
-    } else if let Some(path) = opt(s, path)? {
+    } else if let Some(path) = {
+        s.push_prediction(vec![Prediction::Ty]);
+        opt(s, path)?
+    } {
         Ok(TyKind::Path(path))
     } else if token(s, TokenKind::Open(Delim::Paren)).is_ok() {
         let (tys, final_sep) = seq(s, ty)?;

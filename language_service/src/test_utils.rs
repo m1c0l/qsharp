@@ -44,8 +44,8 @@ const FAKE_STDLIB_CONTENTS: &str = r#"
         export FakeStruct, StructWrapper, StructFn, StructFnWithStructParams, TakesStruct;
     }
     
-    namespace FakeStdLib.Foo {
-        operation Foo() : Unit {}
+    namespace FakeStdLib.Library {
+        operation Library() : Unit {}
     }
     "#;
 

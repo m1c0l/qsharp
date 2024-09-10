@@ -9,6 +9,7 @@ mod expr;
 mod item;
 pub mod keyword;
 pub mod lex;
+mod predict;
 mod prim;
 mod scan;
 mod stmt;
@@ -27,6 +28,7 @@ use std::rc::Rc;
 use std::result;
 use thiserror::Error;
 
+pub use scan::Prediction;
 #[derive(Clone, Eq, Error, PartialEq)]
 pub struct Error(ErrorKind, Option<String>);
 
@@ -177,6 +179,20 @@ type Result<T> = result::Result<T, Error>;
 trait Parser<T>: FnMut(&mut ParserContext) -> Result<T> {}
 
 impl<T, F: FnMut(&mut ParserContext) -> Result<T>> Parser<T> for F {}
+
+#[must_use]
+pub fn whats_next(input: &str, cursor_offset: u32) -> Vec<Prediction> {
+    let mut scanner = ParserContext::predict_mode(input, cursor_offset);
+    let _ = item::parse_namespaces(&mut scanner);
+    scanner.into_predictions()
+}
+
+#[must_use]
+pub fn whats_next_notebook(input: &str, cursor_offset: u32) -> Vec<Prediction> {
+    let mut scanner = ParserContext::predict_mode(input, cursor_offset);
+    let _ = item::parse_top_level_nodes(&mut scanner);
+    scanner.into_predictions()
+}
 
 #[must_use]
 pub fn namespaces(

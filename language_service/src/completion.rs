@@ -14,9 +14,12 @@ use qsc::ast::visit::{self, Visitor};
 use qsc::ast::Idents;
 use qsc::display::{CodeDisplay, Lookup};
 
+use crate::qsc_utils;
 use qsc::hir::{ItemKind, Package, PackageId, Visibility};
 use qsc::line_column::{Encoding, Position, Range};
+#[allow(unused_imports)]
 use qsc::{
+    completion::Prediction,
     resolve::{Local, LocalKind},
     PRELUDE,
 };
@@ -66,6 +69,12 @@ pub(crate) fn get_completions(
     let offset =
         compilation.source_position_to_package_offset(source_name, position, position_encoding);
     let user_ast_package = &compilation.user_unit().ast.package;
+    let source = compilation
+        .user_unit()
+        .sources
+        .find_by_offset(offset)
+        .expect("source should exist");
+    let source_offset: u32 = offset - source.offset;
 
     if log_enabled!(Trace) {
         let last_char = compilation
@@ -138,6 +147,23 @@ pub(crate) fn get_completions(
     context_finder.imports.append(&mut prelude_ns_ids);
 
     let mut builder = CompletionListBuilder::new();
+
+    let new = true;
+    if new {
+        do_the_building(
+            &mut builder,
+            compilation,
+            offset,
+            source_offset,
+            &context_finder,
+            insert_open_range,
+            &indent,
+        );
+
+        return CompletionList {
+            items: builder.into_items(),
+        };
+    }
 
     match context_finder.context {
         Context::Namespace => {
@@ -223,6 +249,110 @@ pub(crate) fn get_completions(
 
     CompletionList {
         items: builder.into_items(),
+    }
+}
+
+fn do_the_building(
+    builder: &mut CompletionListBuilder,
+    compilation: &Compilation,
+    offset: u32,
+    source_offset: u32,
+    context_finder: &ContextFinder,
+    insert_open_range: Option<Range>,
+    indent: &String,
+) {
+    // Just making sure certain things only get added once
+    // whats_next is still a bit fuzzy and returns the same
+    // constraint multiple times sometimes
+
+    let source = compilation
+        .user_unit()
+        .sources
+        .find_by_offset(offset)
+        .expect("source should exist in the user source map");
+
+    // there's some contradiction here because we're using one source file
+    // but we'll need the whole source map at some point. Makes no difference
+    // rn b/c there's only ever one file
+    let predictions = qsc_utils::whats_next(
+        &source.contents,
+        source_offset,
+        matches!(compilation.kind, CompilationKind::Notebook { .. }),
+    );
+
+    println!("predictions: {predictions:?}");
+
+    for completion_constraint in predictions {
+        match completion_constraint {
+            Prediction::Path => {
+                builder.push_locals(compilation, offset, true, false);
+                builder.push_globals_maybe_namespaces(
+                    compilation,
+                    &context_finder.imports,
+                    insert_open_range,
+                    &context_finder.current_namespace_name,
+                    indent,
+                    false,
+                );
+            }
+            Prediction::Ty => {
+                builder.push_locals(compilation, offset, false, true);
+                builder.push_builtin_types();
+                // TODO: UDTS
+                // builder.push_globals(
+                //     compilation,
+                //     &context_finder.opens,
+                //     insert_open_range,
+                //     &context_finder.current_namespace_name,
+                //     &indent,
+                //     false,
+                // );
+            }
+            Prediction::Namespace => {
+                builder.push_globals_maybe_namespaces(
+                    compilation,
+                    &context_finder.imports,
+                    insert_open_range,
+                    &context_finder.current_namespace_name,
+                    indent,
+                    true,
+                );
+            }
+            Prediction::Keyword(keyword) => {
+                builder.push_completions_with_kind(
+                    [(keyword, "keyword".into())].into_iter(),
+                    CompletionItemKind::Keyword,
+                );
+            }
+            Prediction::Qubit => {
+                builder.push_completions_with_kind(
+                    [("Qubit", "qubit".into())].into_iter(),
+                    CompletionItemKind::Interface,
+                );
+            }
+            Prediction::Attr => {
+                // Only known attribute is EntryPoint
+                builder.push_completions_with_kind(
+                    [("EntryPoint", "attr".into())].into_iter(),
+                    CompletionItemKind::Interface,
+                );
+            }
+            Prediction::TyParam => {
+                builder.push_locals(compilation, offset, false, true);
+            }
+            Prediction::Field => {}
+            Prediction::PathPart => {
+                builder.push_globals_in_namespace(
+                    compilation,
+                    &context_finder.imports,
+                    &context_finder.current_namespace_name,
+                    context_finder
+                        .qualifier
+                        .as_ref()
+                        .expect("qualifier should exist"),
+                );
+            }
+        }
     }
 }
 
@@ -462,6 +592,35 @@ impl CompletionListBuilder {
         self.current_sort_group += 1;
     }
 
+    /// Each invocation of this function increments the sort group so that
+    /// in the eventual completion list, the groups of items show up in the
+    /// order they were added.
+    /// The items are then sorted according to the input list order (not alphabetical)
+    pub fn push_completions_with_kind<'a>(
+        &mut self,
+        iter: impl Iterator<Item = (&'a str, String)>,
+        kind: CompletionItemKind,
+    ) {
+        let mut current_sort_prefix = 0;
+
+        self.items.extend(iter.map(|name| CompletionItem {
+            label: name.0.to_string(),
+            kind,
+            sort_text: {
+                current_sort_prefix += 1;
+                Some(format!(
+                    "{:02}{:02}{}",
+                    self.current_sort_group, current_sort_prefix, name.0
+                ))
+            },
+            detail: None,
+            additional_text_edits: None,
+            debug: name.1,
+        }));
+
+        self.current_sort_group += 1;
+    }
+
     /// Push a group of completions that are themselves sorted into subgroups
     fn push_sorted_completions(
         &mut self,
@@ -556,6 +715,64 @@ impl CompletionListBuilder {
                 indent,
             )
         })
+    }
+
+    fn push_globals_maybe_namespaces(
+        &mut self,
+        compilation: &Compilation,
+        imports: &[ImportItem],
+        insert_open_range: Option<Range>,
+        current_namespace_name: &Option<Vec<Rc<str>>>,
+        indent: &String,
+        namespaces_only: bool,
+    ) {
+        if !namespaces_only {
+            for (package_id, _) in compilation.package_store.iter().rev() {
+                self.push_sorted_completions(Self::get_callables(
+                    compilation,
+                    package_id,
+                    imports,
+                    insert_open_range,
+                    current_namespace_name.as_deref(),
+                    indent,
+                ));
+            }
+        }
+
+        for (id, unit) in compilation.package_store.iter().rev() {
+            let alias = compilation.dependencies.get(&id).cloned().flatten();
+            self.push_completions(Self::get_namespaces(&unit.package, alias));
+        }
+    }
+
+    fn push_completions_2(&mut self, iter: impl Iterator<Item = CompletionItem>) {
+        let mut current_sort_prefix = 0;
+
+        self.items.extend(iter.map(|item| CompletionItem {
+            sort_text: {
+                current_sort_prefix += 1;
+                Some(format!(
+                    "{:02}{:02}{}",
+                    self.current_sort_group, current_sort_prefix, item.label
+                ))
+            },
+            ..item
+        }));
+
+        self.current_sort_group += 1;
+    }
+
+    fn push_builtin_types(&mut self) {
+        static PRIMITIVE_TYPES: [&str; 10] = [
+            "Qubit", "Int", "Unit", "Result", "Bool", "BigInt", "Double", "Pauli", "Range",
+            "String",
+        ];
+
+        self.push_completions_2(
+            PRIMITIVE_TYPES
+                .map(|key| CompletionItem::new(key.to_string(), CompletionItemKind::Interface))
+                .into_iter(),
+        );
     }
 
     fn get_namespaces(
@@ -726,6 +943,7 @@ fn local_completion(
         sort_text: None,
         detail,
         additional_text_edits: None,
+        debug: "local completion".into(),
     })
 }
 
@@ -992,6 +1210,7 @@ fn callable_decl_to_completion_item(
             sort_text: None, // This will get filled in during `push_sorted_completions`
             detail,
             additional_text_edits: additional_text_edit.map(|x| vec![x]),
+            debug: "callable decl".into(),
         },
         sort_group,
     )
@@ -1029,6 +1248,7 @@ fn callable_decl_in_namespace_to_completion_item(
                 sort_text: None, // This will get filled in during `push_sorted_completions`
                 detail,
                 additional_text_edits: None,
+                debug: "namespace member".into(),
             },
             sort_group,
         ));
@@ -1050,9 +1270,15 @@ fn callable_decl_in_namespace_to_completion_item(
         .any(|path| {
             let mut path = path.clone();
             path.append(&mut Into::<Vec<_>>::into(provided_namespace_name));
-            let import_item_namespace = &path[..];
-            *import_item_namespace == candidate_ns[..]
+            let full_provided_ns = &path[..];
+            println!(
+                "comparing: {:?} to candidate_ns: {:?} item name: {:?}",
+                full_provided_ns, candidate_ns, candidate_name
+            );
+            *full_provided_ns == candidate_ns[..]
         });
+
+    println!("   match: {}", preexisting_exact_import);
 
     if !preexisting_exact_import {
         return None;
@@ -1077,6 +1303,7 @@ fn callable_decl_in_namespace_to_completion_item(
             sort_text: None, // This will get filled in during `push_sorted_completions`
             detail,
             additional_text_edits: None,
+            debug: "callable member".into(),
         },
         sort_group,
     ))

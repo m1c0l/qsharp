@@ -129,10 +129,11 @@ fn ignore_unstable_namespace() {
                         label: "FakeStdLib",
                         kind: Module,
                         sort_text: Some(
-                            "1101FakeStdLib",
+                            "0201FakeStdLib",
                         ),
                         detail: None,
                         additional_text_edits: None,
+                        debug: "",
                     },
                 ),
                 None,
@@ -159,7 +160,7 @@ fn ignore_unstable_callable() {
                         label: "Fake",
                         kind: Function,
                         sort_text: Some(
-                            "0700Fake",
+                            "3400Fake",
                         ),
                         detail: Some(
                             "operation Fake() : Unit",
@@ -181,6 +182,88 @@ fn ignore_unstable_callable() {
                                 },
                             ],
                         ),
+                        debug: "callable decl",
+                    },
+                ),
+                None,
+            ]
+        "#]],
+    );
+}
+
+#[test]
+fn ignore_internal_callable() {
+    check(
+        r#"
+        namespace Test {
+            internal operation Foo() : Unit {}
+            operation Bar() : Unit {
+                ↘
+            }
+        }
+
+        namespace Test {
+            internal operation Baz() : Unit {}
+        }"#,
+        &["Fake", "Foo", "Baz", "Hidden"],
+        &expect![[r#"
+            [
+                Some(
+                    CompletionItem {
+                        label: "Fake",
+                        kind: Function,
+                        sort_text: Some(
+                            "3400Fake",
+                        ),
+                        detail: Some(
+                            "operation Fake() : Unit",
+                        ),
+                        additional_text_edits: Some(
+                            [
+                                TextEdit {
+                                    new_text: "import FakeStdLib.Fake;\n            ",
+                                    range: Range {
+                                        start: Position {
+                                            line: 2,
+                                            column: 12,
+                                        },
+                                        end: Position {
+                                            line: 2,
+                                            column: 12,
+                                        },
+                                    },
+                                },
+                            ],
+                        ),
+                        debug: "callable decl",
+                    },
+                ),
+                Some(
+                    CompletionItem {
+                        label: "Foo",
+                        kind: Function,
+                        sort_text: Some(
+                            "3300Foo",
+                        ),
+                        detail: Some(
+                            "operation Foo() : Unit",
+                        ),
+                        additional_text_edits: None,
+                        debug: "callable decl",
+                    },
+                ),
+                Some(
+                    CompletionItem {
+                        label: "Baz",
+                        kind: Function,
+                        sort_text: Some(
+                            "3300Baz",
+                        ),
+                        detail: Some(
+                            "operation Baz() : Unit",
+                        ),
+                        additional_text_edits: None,
+                        debug: "callable decl",
                     },
                 ),
                 None,
@@ -207,12 +290,13 @@ fn in_block_contains_std_functions_from_open_namespace() {
                         label: "Fake",
                         kind: Function,
                         sort_text: Some(
-                            "0700Fake",
+                            "3400Fake",
                         ),
                         detail: Some(
                             "operation Fake() : Unit",
                         ),
                         additional_text_edits: None,
+                        debug: "callable decl",
                     },
                 ),
                 Some(
@@ -220,12 +304,13 @@ fn in_block_contains_std_functions_from_open_namespace() {
                         label: "FakeWithParam",
                         kind: Function,
                         sort_text: Some(
-                            "0700FakeWithParam",
+                            "3400FakeWithParam",
                         ),
                         detail: Some(
                             "operation FakeWithParam(x : Int) : Unit",
                         ),
                         additional_text_edits: None,
+                        debug: "callable decl",
                     },
                 ),
                 Some(
@@ -233,12 +318,13 @@ fn in_block_contains_std_functions_from_open_namespace() {
                         label: "FakeCtlAdj",
                         kind: Function,
                         sort_text: Some(
-                            "0700FakeCtlAdj",
+                            "3400FakeCtlAdj",
                         ),
                         detail: Some(
                             "operation FakeCtlAdj() : Unit is Adj + Ctl",
                         ),
                         additional_text_edits: None,
+                        debug: "callable decl",
                     },
                 ),
             ]
@@ -264,7 +350,7 @@ fn in_block_contains_std_functions() {
                         label: "Fake",
                         kind: Function,
                         sort_text: Some(
-                            "0700Fake",
+                            "3400Fake",
                         ),
                         detail: Some(
                             "operation Fake() : Unit",
@@ -286,6 +372,7 @@ fn in_block_contains_std_functions() {
                                 },
                             ],
                         ),
+                        debug: "callable decl",
                     },
                 ),
                 Some(
@@ -293,7 +380,7 @@ fn in_block_contains_std_functions() {
                         label: "FakeWithParam",
                         kind: Function,
                         sort_text: Some(
-                            "0700FakeWithParam",
+                            "3400FakeWithParam",
                         ),
                         detail: Some(
                             "operation FakeWithParam(x : Int) : Unit",
@@ -315,6 +402,7 @@ fn in_block_contains_std_functions() {
                                 },
                             ],
                         ),
+                        debug: "callable decl",
                     },
                 ),
                 Some(
@@ -322,7 +410,7 @@ fn in_block_contains_std_functions() {
                         label: "FakeCtlAdj",
                         kind: Function,
                         sort_text: Some(
-                            "0700FakeCtlAdj",
+                            "3400FakeCtlAdj",
                         ),
                         detail: Some(
                             "operation FakeCtlAdj() : Unit is Adj + Ctl",
@@ -344,6 +432,7 @@ fn in_block_contains_std_functions() {
                                 },
                             ],
                         ),
+                        debug: "callable decl",
                     },
                 ),
             ]
@@ -432,12 +521,13 @@ fn in_block_no_auto_open() {
                         label: "Fake",
                         kind: Function,
                         sort_text: Some(
-                            "0700Fake",
+                            "3400Fake",
                         ),
                         detail: Some(
                             "operation Fake() : Unit",
                         ),
                         additional_text_edits: None,
+                        debug: "callable decl",
                     },
                 ),
             ]
@@ -463,12 +553,13 @@ fn in_block_with_alias() {
                         label: "Alias.Fake",
                         kind: Function,
                         sort_text: Some(
-                            "0700Alias.Fake",
+                            "3400Alias.Fake",
                         ),
                         detail: Some(
                             "operation Fake() : Unit",
                         ),
                         additional_text_edits: None,
+                        debug: "callable decl",
                     },
                 ),
             ]
@@ -498,7 +589,7 @@ fn in_block_from_other_namespace() {
                         label: "Foo",
                         kind: Function,
                         sort_text: Some(
-                            "0600Foo",
+                            "3300Foo",
                         ),
                         detail: Some(
                             "operation Foo() : Unit",
@@ -520,6 +611,7 @@ fn in_block_from_other_namespace() {
                                 },
                             ],
                         ),
+                        debug: "callable decl",
                     },
                 ),
             ]
@@ -550,7 +642,7 @@ fn auto_open_multiple_files() {
                         label: "FooOperation",
                         kind: Function,
                         sort_text: Some(
-                            "0600FooOperation",
+                            "3300FooOperation",
                         ),
                         detail: Some(
                             "operation FooOperation() : Unit",
@@ -572,6 +664,7 @@ fn auto_open_multiple_files() {
                                 },
                             ],
                         ),
+                        debug: "callable decl",
                     },
                 ),
             ]
@@ -597,12 +690,13 @@ fn in_block_nested_op() {
                         label: "Foo",
                         kind: Function,
                         sort_text: Some(
-                            "0100Foo",
+                            "2900Foo",
                         ),
                         detail: Some(
                             "operation Foo() : Unit",
                         ),
                         additional_text_edits: None,
+                        debug: "local completion",
                     },
                 ),
             ]
@@ -648,10 +742,11 @@ fn in_namespace_contains_open() {
                         label: "open",
                         kind: Keyword,
                         sort_text: Some(
-                            "0102open",
+                            "0201open",
                         ),
                         detail: None,
                         additional_text_edits: None,
+                        debug: "keyword",
                     },
                 ),
             ]
@@ -678,6 +773,7 @@ fn top_level_contains_namespace() {
                         ),
                         detail: None,
                         additional_text_edits: None,
+                        debug: "keyword",
                     },
                 ),
             ]
@@ -690,21 +786,22 @@ fn attributes() {
     check(
         indoc! {r#"
         namespace Test {
-            ↘
+            @↘
         }
         "#},
-        &["@EntryPoint()"],
+        &["EntryPoint"],
         &expect![[r#"
             [
                 Some(
                     CompletionItem {
-                        label: "@EntryPoint()",
-                        kind: Property,
+                        label: "EntryPoint",
+                        kind: Interface,
                         sort_text: Some(
-                            "0201@EntryPoint()",
+                            "0101EntryPoint",
                         ),
                         detail: None,
                         additional_text_edits: None,
+                        debug: "attr",
                     },
                 ),
             ]
@@ -729,7 +826,7 @@ fn stdlib_udt() {
                         label: "TakesUdt",
                         kind: Function,
                         sort_text: Some(
-                            "0700TakesUdt",
+                            "3400TakesUdt",
                         ),
                         detail: Some(
                             "function TakesUdt(input : Udt) : Udt",
@@ -751,6 +848,7 @@ fn stdlib_udt() {
                                 },
                             ],
                         ),
+                        debug: "callable decl",
                     },
                 ),
             ]
@@ -775,10 +873,11 @@ fn notebook_top_level() {
                         label: "operation",
                         kind: Keyword,
                         sort_text: Some(
-                            "0201operation",
+                            "0701operation",
                         ),
                         detail: None,
                         additional_text_edits: None,
+                        debug: "keyword",
                     },
                 ),
                 Some(
@@ -786,10 +885,11 @@ fn notebook_top_level() {
                         label: "namespace",
                         kind: Keyword,
                         sort_text: Some(
-                            "1301namespace",
+                            "0101namespace",
                         ),
                         detail: None,
                         additional_text_edits: None,
+                        debug: "keyword",
                     },
                 ),
                 Some(
@@ -797,10 +897,11 @@ fn notebook_top_level() {
                         label: "let",
                         kind: Keyword,
                         sort_text: Some(
-                            "0301let",
+                            "0801let",
                         ),
                         detail: None,
                         additional_text_edits: None,
+                        debug: "keyword",
                     },
                 ),
                 Some(
@@ -808,7 +909,7 @@ fn notebook_top_level() {
                         label: "Fake",
                         kind: Function,
                         sort_text: Some(
-                            "0800Fake",
+                            "3200Fake",
                         ),
                         detail: Some(
                             "operation Fake() : Unit",
@@ -830,6 +931,7 @@ fn notebook_top_level() {
                                 },
                             ],
                         ),
+                        debug: "callable decl",
                     },
                 ),
             ]
@@ -854,7 +956,7 @@ fn notebook_top_level_global() {
                         label: "Fake",
                         kind: Function,
                         sort_text: Some(
-                            "0800Fake",
+                            "3200Fake",
                         ),
                         detail: Some(
                             "operation Fake() : Unit",
@@ -876,6 +978,7 @@ fn notebook_top_level_global() {
                                 },
                             ],
                         ),
+                        debug: "callable decl",
                     },
                 ),
             ]
@@ -902,12 +1005,13 @@ fn notebook_top_level_namespace_already_open_for_global() {
                         label: "Fake",
                         kind: Function,
                         sort_text: Some(
-                            "0800Fake",
+                            "3200Fake",
                         ),
                         detail: Some(
                             "operation Fake() : Unit",
                         ),
                         additional_text_edits: None,
+                        debug: "callable decl",
                     },
                 ),
             ]
@@ -933,7 +1037,7 @@ fn notebook_block() {
                         label: "Fake",
                         kind: Function,
                         sort_text: Some(
-                            "0700Fake",
+                            "3400Fake",
                         ),
                         detail: Some(
                             "operation Fake() : Unit",
@@ -955,6 +1059,7 @@ fn notebook_block() {
                                 },
                             ],
                         ),
+                        debug: "callable decl",
                     },
                 ),
                 Some(
@@ -962,10 +1067,11 @@ fn notebook_block() {
                         label: "let",
                         kind: Keyword,
                         sort_text: Some(
-                            "0201let",
+                            "1001let",
                         ),
                         detail: None,
                         additional_text_edits: None,
+                        debug: "keyword",
                     },
                 ),
             ]
@@ -1000,7 +1106,7 @@ fn notebook_auto_open_start_of_cell_empty() {
                         label: "Fake",
                         kind: Function,
                         sort_text: Some(
-                            "0800Fake",
+                            "3200Fake",
                         ),
                         detail: Some(
                             "operation Fake() : Unit",
@@ -1022,6 +1128,7 @@ fn notebook_auto_open_start_of_cell_empty() {
                                 },
                             ],
                         ),
+                        debug: "callable decl",
                     },
                 ),
             ]
@@ -1057,7 +1164,7 @@ fn notebook_auto_open_start_of_cell() {
                         label: "Fake",
                         kind: Function,
                         sort_text: Some(
-                            "0800Fake",
+                            "3200Fake",
                         ),
                         detail: Some(
                             "operation Fake() : Unit",
@@ -1079,6 +1186,7 @@ fn notebook_auto_open_start_of_cell() {
                                 },
                             ],
                         ),
+                        debug: "callable decl",
                     },
                 ),
             ]
@@ -1106,12 +1214,13 @@ fn local_vars() {
                         label: "bar",
                         kind: Variable,
                         sort_text: Some(
-                            "0100bar",
+                            "2900bar",
                         ),
                         detail: Some(
                             "bar : Int",
                         ),
                         additional_text_edits: None,
+                        debug: "local completion",
                     },
                 ),
             ]
@@ -1139,12 +1248,13 @@ fn local_items() {
                         label: "Foo",
                         kind: Function,
                         sort_text: Some(
-                            "0100Foo",
+                            "2900Foo",
                         ),
                         detail: Some(
                             "operation Foo() : Unit",
                         ),
                         additional_text_edits: None,
+                        debug: "local completion",
                     },
                 ),
                 Some(
@@ -1152,12 +1262,13 @@ fn local_items() {
                         label: "Bar",
                         kind: Function,
                         sort_text: Some(
-                            "0100Bar",
+                            "2900Bar",
                         ),
                         detail: Some(
                             "operation Bar() : Unit",
                         ),
                         additional_text_edits: None,
+                        debug: "local completion",
                     },
                 ),
                 Some(
@@ -1165,12 +1276,13 @@ fn local_items() {
                         label: "Custom",
                         kind: Interface,
                         sort_text: Some(
-                            "0100Custom",
+                            "2900Custom",
                         ),
                         detail: Some(
                             "newtype Custom = String",
                         ),
                         additional_text_edits: None,
+                        debug: "local completion",
                     },
                 ),
             ]
@@ -1184,7 +1296,7 @@ fn type_params() {
         r#"
     namespace Test {
         operation Foo<'T>() : Unit {
-            ↘
+            let x: ↘
         }
     }"#,
         &["'T", "Bar"],
@@ -1195,10 +1307,11 @@ fn type_params() {
                         label: "'T",
                         kind: TypeParameter,
                         sort_text: Some(
-                            "0100'T",
+                            "0200'T",
                         ),
                         detail: None,
                         additional_text_edits: None,
+                        debug: "local completion",
                     },
                 ),
                 None,
@@ -1248,12 +1361,13 @@ fn callable_params() {
                         label: "foo",
                         kind: Variable,
                         sort_text: Some(
-                            "0100foo",
+                            "2900foo",
                         ),
                         detail: Some(
                             "foo : Int",
                         ),
                         additional_text_edits: None,
+                        debug: "local completion",
                     },
                 ),
                 Some(
@@ -1261,12 +1375,13 @@ fn callable_params() {
                         label: "bar",
                         kind: Variable,
                         sort_text: Some(
-                            "0100bar",
+                            "2900bar",
                         ),
                         detail: Some(
                             "bar : Custom",
                         ),
                         additional_text_edits: None,
+                        debug: "local completion",
                     },
                 ),
             ]
@@ -1297,12 +1412,13 @@ fn local_var_in_callable_parent_scope() {
                         label: "baz",
                         kind: Variable,
                         sort_text: Some(
-                            "0100baz",
+                            "2900baz",
                         ),
                         detail: Some(
                             "baz : Int",
                         ),
                         additional_text_edits: None,
+                        debug: "local completion",
                     },
                 ),
             ]
@@ -1379,12 +1495,13 @@ fn dont_import_if_already_glob_imported() {
                         label: "Foo",
                         kind: Function,
                         sort_text: Some(
-                            "0600Foo",
+                            "3300Foo",
                         ),
                         detail: Some(
                             "operation Foo() : Unit",
                         ),
                         additional_text_edits: None,
+                        debug: "callable decl",
                     },
                 ),
                 Some(
@@ -1392,12 +1509,13 @@ fn dont_import_if_already_glob_imported() {
                         label: "Bar",
                         kind: Function,
                         sort_text: Some(
-                            "0600Bar",
+                            "3300Bar",
                         ),
                         detail: Some(
                             "operation Bar() : Unit",
                         ),
                         additional_text_edits: None,
+                        debug: "callable decl",
                     },
                 ),
             ]
@@ -1432,7 +1550,7 @@ fn glob_import_item_with_same_name() {
                         label: "Bar",
                         kind: Function,
                         sort_text: Some(
-                            "0600Bar",
+                            "3300Bar",
                         ),
                         detail: Some(
                             "operation Bar() : Unit",
@@ -1454,6 +1572,7 @@ fn glob_import_item_with_same_name() {
                                 },
                             ],
                         ),
+                        debug: "callable decl",
                     },
                 ),
             ]
@@ -1486,12 +1605,13 @@ fn dont_import_if_already_directly_imported() {
                         label: "Foo",
                         kind: Function,
                         sort_text: Some(
-                            "0100Foo",
+                            "3200Foo",
                         ),
                         detail: Some(
                             "operation Foo() : Unit",
                         ),
                         additional_text_edits: None,
+                        debug: "local completion",
                     },
                 ),
                 Some(
@@ -1499,7 +1619,7 @@ fn dont_import_if_already_directly_imported() {
                         label: "Bar",
                         kind: Function,
                         sort_text: Some(
-                            "0600Bar",
+                            "3300Bar",
                         ),
                         detail: Some(
                             "operation Bar() : Unit",
@@ -1521,6 +1641,7 @@ fn dont_import_if_already_directly_imported() {
                                 },
                             ],
                         ),
+                        debug: "callable decl",
                     },
                 ),
             ]
@@ -1545,7 +1666,7 @@ fn auto_import_from_qir_runtime() {
                         label: "AllocateQubitArray",
                         kind: Function,
                         sort_text: Some(
-                            "0800AllocateQubitArray",
+                            "3500AllocateQubitArray",
                         ),
                         detail: Some(
                             "operation AllocateQubitArray(size : Int) : Qubit[]",
@@ -1567,6 +1688,7 @@ fn auto_import_from_qir_runtime() {
                                 },
                             ],
                         ),
+                        debug: "callable decl",
                     },
                 ),
             ]
@@ -1592,12 +1714,13 @@ fn dont_generate_import_for_core_prelude() {
                         label: "Length",
                         kind: Function,
                         sort_text: Some(
-                            "0800Length",
+                            "3500Length",
                         ),
                         detail: Some(
                             "function Length<'T>(a : 'T[]) : Int",
                         ),
                         additional_text_edits: None,
+                        debug: "callable decl",
                     },
                 ),
             ]
@@ -1624,12 +1747,13 @@ fn dont_generate_import_for_stdlib_prelude() {
                         label: "MResetZ",
                         kind: Function,
                         sort_text: Some(
-                            "0700MResetZ",
+                            "3400MResetZ",
                         ),
                         detail: Some(
                             "operation MResetZ(target : Qubit) : Result",
                         ),
                         additional_text_edits: None,
+                        debug: "callable decl",
                     },
                 ),
             ]
@@ -1655,12 +1779,13 @@ fn callable_from_same_file() {
                         label: "MyCallable",
                         kind: Function,
                         sort_text: Some(
-                            "0600MyCallable",
+                            "3300MyCallable",
                         ),
                         detail: Some(
                             "function MyCallable() : Unit",
                         ),
                         additional_text_edits: None,
+                        debug: "callable decl",
                     },
                 ),
             ]
@@ -1697,6 +1822,7 @@ fn member_completion() {
                             "function MyCallable() : Unit",
                         ),
                         additional_text_edits: None,
+                        debug: "namespace member",
                     },
                 ),
             ]
@@ -1734,6 +1860,7 @@ fn member_completion_in_imported_namespace() {
                             "function MyCallable() : Unit",
                         ),
                         additional_text_edits: None,
+                        debug: "callable member",
                     },
                 ),
             ]
@@ -1768,6 +1895,7 @@ fn namespace_completion() {
                         ),
                         detail: None,
                         additional_text_edits: None,
+                        debug: "",
                     },
                 ),
             ]
@@ -1802,6 +1930,7 @@ fn nested_namespace() {
                             "function MyCallable() : Unit",
                         ),
                         additional_text_edits: None,
+                        debug: "callable member",
                     },
                 ),
                 None,
@@ -1819,7 +1948,7 @@ fn std_member() {
                 FakeStdLib.↘
             }
         }"#,
-        &["Fake", "Foo"],
+        &["Fake", "Library"],
         &expect![[r#"
             [
                 Some(
@@ -1833,17 +1962,19 @@ fn std_member() {
                             "operation Fake() : Unit",
                         ),
                         additional_text_edits: None,
+                        debug: "namespace member",
                     },
                 ),
                 Some(
                     CompletionItem {
-                        label: "Foo",
+                        label: "Library",
                         kind: Module,
                         sort_text: Some(
-                            "0501Foo",
+                            "0501Library",
                         ),
                         detail: None,
                         additional_text_edits: None,
+                        debug: "",
                     },
                 ),
             ]

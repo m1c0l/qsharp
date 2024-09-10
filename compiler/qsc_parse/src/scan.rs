@@ -4,6 +4,7 @@
 use super::Error;
 use crate::{
     lex::{Lexer, Token, TokenKind},
+    predict::CursorAwareLexer,
     ErrorKind,
 };
 use qsc_data_structures::{language_features::LanguageFeatures, span::Span};
@@ -11,9 +12,37 @@ use qsc_data_structures::{language_features::LanguageFeatures, span::Span};
 #[derive(Debug)]
 pub(super) struct NoBarrierError;
 
+#[derive(Clone, Debug, PartialEq)]
+pub enum Prediction {
+    Path,
+    PathPart, // a.b.<path_part>
+    Field,
+    Attr,
+    Namespace,
+    Qubit,
+    Ty,
+    TyParam,
+    Keyword(&'static str),
+}
+
+enum ScannerKind<'a> {
+    Normal(Lexer<'a>),
+    Predict(CursorAwareLexer<'a>, Vec<Prediction>),
+}
+
 pub(super) struct ParserContext<'a> {
     scanner: Scanner<'a>,
     language_features: LanguageFeatures,
+}
+
+impl ParserContext<'_> {
+    pub fn push_prediction(&mut self, expectations: Vec<Prediction>) {
+        self.scanner.push_prediction(expectations);
+    }
+
+    pub fn into_predictions(self) -> Vec<Prediction> {
+        self.scanner.into_predictions()
+    }
 }
 
 /// Scans over the token stream. Notably enforces LL(1) parser behavior via
@@ -22,7 +51,7 @@ pub(super) struct ParserContext<'a> {
 /// peek more than one token ahead, to maintain LL(1) enforcement.
 pub(super) struct Scanner<'a> {
     input: &'a str,
-    tokens: Lexer<'a>,
+    kind: ScannerKind<'a>,
     barriers: Vec<&'a [TokenKind]>,
     errors: Vec<Error>,
     recovered_eof: bool,
@@ -35,6 +64,13 @@ impl<'a> ParserContext<'a> {
         Self {
             scanner: Scanner::new(input),
             language_features,
+        }
+    }
+
+    pub fn predict_mode(input: &'a str, cursor_offset: u32) -> Self {
+        Self {
+            scanner: Scanner::predict_mode(input, cursor_offset),
+            language_features: LanguageFeatures::default(),
         }
     }
 
@@ -91,14 +127,31 @@ impl<'a> Scanner<'a> {
         let (peek, errors) = next_ok(&mut tokens);
         Self {
             input,
-            tokens,
+            kind: ScannerKind::Normal(tokens),
             barriers: Vec::new(),
+            peek: peek.unwrap_or_else(|| eof(input.len())),
             errors: errors
                 .into_iter()
                 .map(|e| Error::new(ErrorKind::Lex(e)))
                 .collect(),
+            offset: 0,
+            recovered_eof: false,
+        }
+    }
+
+    pub(super) fn predict_mode(input: &'a str, cursor_offset: u32) -> Self {
+        let mut tokens = CursorAwareLexer::new(input, cursor_offset);
+        let (peek, errors) = next_ok(&mut tokens);
+        Self {
+            input,
+            kind: ScannerKind::Predict(tokens, Vec::new()),
             recovered_eof: false,
             peek: peek.unwrap_or_else(|| eof(input.len())),
+            errors: errors
+                .into_iter()
+                .map(|e| Error::new(ErrorKind::Lex(e)))
+                .collect(),
+            barriers: Vec::new(),
             offset: 0,
         }
     }
@@ -121,7 +174,11 @@ impl<'a> Scanner<'a> {
     pub(super) fn advance(&mut self) {
         if self.peek.kind != TokenKind::Eof {
             self.offset = self.peek.span.hi;
-            let (peek, errors) = next_ok(&mut self.tokens);
+            let (peek, errors) = match &mut self.kind {
+                ScannerKind::Normal(tokens) => next_ok(tokens),
+                ScannerKind::Predict(tokens, _) => next_ok(tokens),
+            };
+
             self.errors
                 .extend(errors.into_iter().map(|e| Error::new(ErrorKind::Lex(e))));
             self.peek = peek.unwrap_or_else(|| eof(self.input.len()));
@@ -151,6 +208,11 @@ impl<'a> Scanner<'a> {
             if contains(peek, tokens) {
                 self.advance();
                 break;
+            } else if peek == TokenKind::Eof || self.barriers.iter().any(|&b| contains(peek, b)) {
+                if let ScannerKind::Predict(lexer, _) = &mut self.kind {
+                    lexer.at_cursor = false;
+                }
+                break;
             }
             if peek == TokenKind::Eof || self.barriers.iter().any(|&b| contains(peek, b)) {
                 break;
@@ -172,6 +234,22 @@ impl<'a> Scanner<'a> {
 
     pub(super) fn into_errors(self) -> Vec<Error> {
         self.errors
+    }
+
+    pub fn push_prediction(&mut self, expectations: Vec<Prediction>) {
+        if let ScannerKind::Predict(lexer, predictions) = &mut self.kind {
+            if lexer.at_cursor {
+                predictions.extend(expectations);
+            }
+        }
+    }
+
+    pub fn into_predictions(self) -> Vec<Prediction> {
+        if let ScannerKind::Predict(_, predictions) = self.kind {
+            predictions
+        } else {
+            panic!("expected prediction scanner")
+        }
     }
 }
 

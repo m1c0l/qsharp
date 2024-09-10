@@ -294,7 +294,7 @@ fn opt_fail_consume() {
         &expect![[r#"
             Path _id_ [0-4]:
                 Ident _id_ [0-3] "Foo"
-                Ident _id_ [5-4] ""
+                Ident _id_ [4-5] ""
 
             [
                 Error(

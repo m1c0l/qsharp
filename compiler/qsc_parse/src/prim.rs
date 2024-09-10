@@ -85,17 +85,6 @@ pub(super) fn ident(s: &mut ParserContext) -> Result<Box<Ident>> {
     }
 }
 
-// pub fn single_ident_path(s: &mut ParserContext) -> Result<Box<Path>> {
-//     let lo = s.peek().span.lo;
-//     let name = ident(s)?;
-//     Ok(Box::new(Path {
-//         id: NodeId::default(),
-//         span: s.span(lo),
-//         segments: None,
-//         name,
-//     }))
-// }
-
 /// A `path` is a dot-separated list of idents like "Foo.Bar.Baz"
 /// this can be either a namespace name (in an open statement or namespace declaration) or
 /// it can be a direct reference to something in a namespace, like `Microsoft.Quantum.Diagnostics.DumpMachine()`

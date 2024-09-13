@@ -16,13 +16,16 @@ use qsc_fir::{
     extensions::InputParam,
     fir::{
         BinOp, Block, BlockId, CallableDecl, CallableImpl, CallableKind, Expr, ExprId, ExprKind,
-        FieldAssign, Global, Ident, Item, ItemKind, LocalVarId, Mutability, Package, PackageId,
-        PackageLookup, PackageStore, PackageStoreLookup, Pat, PatId, PatKind, Res, SpecDecl,
-        SpecImpl, Stmt, StmtId, StmtKind, StoreExprId, StoreItemId, StorePatId, StringComponent,
+        FieldAssign, Global, Ident, Item, ItemKind, LocalItemId, LocalVarId, Mutability, Package,
+        PackageId, PackageLookup, PackageStore, PackageStoreLookup, Pat, PatId, PatKind, Res,
+        SpecDecl, SpecImpl, Stmt, StmtId, StmtKind, StoreExprId, StoreItemId, StorePatId,
+        StringComponent,
     },
     ty::{Arrow, FunctorSetValue, Prim, Ty},
     visit::{walk_stmt, Visitor},
 };
+
+use std::{fs::File, io::Write};
 
 pub struct Analyzer<'a> {
     package_store: &'a PackageStore,
@@ -43,6 +46,7 @@ impl<'a> Analyzer<'a> {
     }
 
     pub fn analyze_all(mut self) -> InternalPackageStoreComputeProperties {
+        write_fir_store_to_files(self.package_store);
         for (package_id, package) in self.package_store {
             self.analyze_package_internal(package_id, package);
         }
@@ -1173,6 +1177,9 @@ impl<'a> Analyzer<'a> {
     }
 
     fn analyze_package_internal(&mut self, package_id: PackageId, package: &'a Package) {
+        //if package_id == PackageId::from(1) {
+        //    println!("{package}");
+        //}
         // Analyze all top level items.
         for (local_item_id, item) in &package.items {
             self.analyze_item((package_id, local_item_id).into(), item);
@@ -1922,6 +1929,10 @@ impl<'a> Visitor<'a> for Analyzer<'a> {
                 );
             }
             ItemKind::Callable(decl) => {
+                // TODO(cesarzc): Do something here.
+                if item.id == LocalItemId::from(2) {
+                    println!("{}", decl.name.name);
+                }
                 self.visit_callable_decl(decl);
             }
             ItemKind::Export(
@@ -2563,5 +2574,14 @@ fn is_any_result(t: &Ty) -> bool {
         Ty::Array(t) => is_any_result(t),
         Ty::Tuple(ts) => ts.iter().any(is_any_result),
         _ => false,
+    }
+}
+
+pub fn write_fir_store_to_files(store: &PackageStore) {
+    for (id, package) in store {
+        let filename = format!("fir.package{id}.txt");
+        let mut package_file = File::create(filename).expect("File could be created");
+        let package_string = format!("{package}");
+        write!(package_file, "{package_string}").expect("Writing to file should succeed.");
     }
 }

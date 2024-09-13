@@ -95,6 +95,18 @@ fn check_rca_for_closure_operation_with_dynamic_captured_value() {
 }
 
 #[test]
+fn check_rca_for_repeated() {
+    let mut compilation_context = CompilationContext::default();
+    compilation_context.update(
+        r#"
+        let r = Repeated;
+        r"#,
+    );
+    let package_store_compute_properties = compilation_context.get_compute_properties();
+    check_last_statement_compute_properties(package_store_compute_properties, &expect![[r#""#]]);
+}
+
+#[test]
 fn check_rca_for_operation_with_one_classical_return_and_one_dynamic_return() {
     let mut compilation_context = CompilationContext::default();
     compilation_context.update(
